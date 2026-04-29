@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMC Aqua — Optimizador de Fertilizantes</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --aqua-50:  #EAF6FB;
+  --aqua-100: #C5E9F6;
+  --aqua-200: #8DD3EC;
+  --aqua-400: #3AAFE0;
+  --aqua-600: #1A7FAF;
+  --aqua-800: #0D4F6E;
+  --aqua-900: #072E42;
+  --bg:       #F0F8FC;
+  --surface:  #FFFFFF;
+  --border:   rgba(26,127,175,0.18);
+  --border-md:rgba(26,127,175,0.32);
+  --text-1:   #0D2535;
+  --text-2:   #3A6478;
+  --text-3:   #7AACBF;
+  --green:    #1A8C6E;
+  --green-bg: #E6F7F2;
+  --red:      #C0392B;
+  --red-bg:   #FDECEA;
+  --amber:    #A06000;
+  --amber-bg: #FFF3DC;
+  --radius-sm:6px;
+  --radius-md:10px;
+  --radius-lg:16px;
+  --radius-xl:22px;
+  --shadow:   0 2px 12px rgba(13,79,110,0.09);
+  --shadow-md:0 6px 28px rgba(13,79,110,0.13);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-1); min-height: 100vh; }
+
+/* ── HEADER ── */
+.header {
+  background: linear-gradient(135deg, var(--aqua-800) 0%, var(--aqua-600) 60%, var(--aqua-400) 100%);
+  padding: 1.25rem 2rem;
+  display: flex; align-items: center; gap: 1rem;
+  box-shadow: var(--shadow-md);
+  position: sticky; top: 0; z-index: 100;
+}
+.logo {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: rgba(255,255,255,0.18);
+  border: 1.5px solid rgba(255,255,255,0.35);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.logo svg { width: 26px; height: 26px; }
+.header-text h1 { font-size: 1.2rem; font-weight: 600; color: #fff; letter-spacing: -0.01em; }
+.header-text p  { font-size: 0.78rem; color: rgba(255,255,255,0.72); font-weight: 300; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; }
+.status-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 500;
+  background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3);
+  transition: background 0.2s;
+}
+.status-pill.ok   { background: rgba(26,140,110,0.55); }
+.status-pill.err  { background: rgba(192,57,43,0.55); }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.7); }
+.status-pill.ok  .status-dot { background: #4DEBB7; }
+.status-pill.err .status-dot { background: #FF7B6B; }
+
+/* ── LAYOUT ── */
+.main { max-width: 940px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+
+/* ── TABS ── */
+.tabs { display: flex; gap: 2px; background: rgba(26,127,175,0.08); border-radius: var(--radius-lg); padding: 4px; margin-bottom: 1.75rem; }
+.tab {
+  flex: 1; padding: 9px 0; font-size: 0.82rem; font-weight: 500;
+  border: none; background: none; cursor: pointer; border-radius: var(--radius-md);
+  color: var(--text-2); transition: all 0.18s;
+}
+.tab:hover { background: rgba(26,127,175,0.1); color: var(--aqua-600); }
+.tab.active { background: var(--surface); color: var(--aqua-800); box-shadow: var(--shadow); }
+
+/* ── PANELS ── */
+.panel { display: none; animation: fadein 0.2s ease; }
+.panel.active { display: block; }
+@keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem; box-shadow: var(--shadow);
+}
+.card-title {
+  font-size: 0.7rem; font-weight: 600; color: var(--aqua-600);
+  text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 1rem;
+}
+
+/* ── GRID ── */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+.g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+
+/* ── FORM ── */
+.field { margin-bottom: 0; }
+label { font-size: 0.75rem; font-weight: 500; color: var(--text-2); display: block; margin-bottom: 5px; }
+input[type=text], input[type=number], select {
+  width: 100%; padding: 8px 11px; font-size: 0.85rem;
+  border: 1px solid var(--border-md); border-radius: var(--radius-sm);
+  background: var(--bg); color: var(--text-1); font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s; outline: none;
+}
+input:focus, select:focus { border-color: var(--aqua-400); box-shadow: 0 0 0 3px rgba(58,175,224,0.15); }
+input::placeholder { color: var(--text-3); }
+
+/* ── RUN BUTTON ── */
+.run-btn {
+  width: 100%; padding: 12px;
+  background: linear-gradient(135deg, var(--aqua-800), var(--aqua-600));
+  color: #fff; border: none; border-radius: var(--radius-md);
+  font-size: 0.9rem; font-weight: 600; cursor: pointer; margin-top: 0.5rem;
+  letter-spacing: 0.02em; transition: opacity 0.15s, transform 0.1s;
+  box-shadow: 0 4px 14px rgba(13,79,110,0.25);
+}
+.run-btn:hover { opacity: 0.9; }
+.run-btn:active { transform: scale(0.99); }
+
+/* ── SPINNER ── */
+.spinner { display: none; text-align: center; padding: 2rem; color: var(--text-2); font-size: 0.85rem; }
+.spin { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border-md); border-top-color: var(--aqua-400); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── METRIC CARDS ── */
+.metric-card { background: var(--aqua-50); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1rem; }
+.metric-label { font-size: 0.7rem; font-weight: 500; color: var(--text-2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+.metric-value { font-size: 1.5rem; font-weight: 600; color: var(--aqua-800); font-family: 'DM Mono', monospace; }
+
+/* ── TABLES ── */
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.tbl th { padding: 8px 10px; text-align: left; font-size: 0.7rem; font-weight: 600; color: var(--text-2); border-bottom: 1px solid var(--border); white-space: nowrap; letter-spacing: 0.04em; }
+.tbl td { padding: 9px 10px; border-bottom: 1px solid var(--border); color: var(--text-1); vertical-align: middle; }
+.tbl tbody tr:last-child td { border-bottom: none; }
+.tbl tbody tr:hover td { background: var(--aqua-50); }
+.tbl tfoot td { font-weight: 600; background: var(--aqua-50); border-top: 1.5px solid var(--border-md); }
+
+/* ── BADGES ── */
+.badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.68rem; font-weight: 600; }
+.b-liq { background: var(--aqua-100); color: var(--aqua-800); }
+.b-sol { background: #E8F5E9; color: #1B5E20; }
+
+/* ── BAR ── */
+.bar-wrap { background: var(--aqua-50); border-radius: 4px; height: 8px; min-width: 80px; overflow: hidden; margin-top: 3px; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
+
+/* ── NUT GRID ── */
+.nut-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.75rem; }
+.nut-card { background: var(--aqua-50); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.9rem 1rem; }
+.nut-name { font-size: 0.7rem; color: var(--text-2); font-weight: 500; margin-bottom: 4px; }
+.nut-val  { font-size: 1.25rem; font-weight: 600; font-family: 'DM Mono', monospace; }
+.nut-target { font-size: 0.68rem; color: var(--text-3); margin-top: 3px; }
+.ok  { color: var(--green); }
+.nok { color: var(--red); }
+
+/* ── DB TABLE INPUT ── */
+.db-wrap { overflow-x: auto; }
+.db-tbl { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 900px; }
+.db-tbl th { padding: 7px 8px; text-align: left; font-size: 0.67rem; font-weight: 600; color: var(--text-2); border-bottom: 1px solid var(--border); white-space: nowrap; letter-spacing: 0.04em; background: var(--aqua-50); }
+.db-tbl td { padding: 5px 7px; border-bottom: 1px solid var(--border); }
+.db-tbl tbody tr:last-child td { border-bottom: none; }
+.db-tbl input[type=number] { width: 64px; padding: 4px 6px; font-size: 0.75rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text-1); font-family: 'DM Mono', monospace; }
+.db-tbl input[type=number]:focus { border-color: var(--aqua-400); outline: none; }
+.lock-btn { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 2px 4px; border-radius: 4px; }
+.lock-btn:hover { background: var(--aqua-50); }
+
+/* ── ALERTS ── */
+.alert { padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.78rem; margin-bottom: 0.75rem; display: flex; align-items: flex-start; gap: 8px; }
+.alert-warn { background: var(--amber-bg); color: var(--amber); border-left: 3px solid #E8A000; }
+.alert-ok   { background: var(--green-bg); color: var(--green); border-left: 3px solid var(--green); }
+
+/* ── COTIZ ── */
+.cotiz-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+.cotiz-row:last-child { border-bottom: none; font-weight: 600; font-size: 0.9rem; color: var(--aqua-800); }
+.cotiz-val { font-family: 'DM Mono', monospace; font-size: 0.82rem; }
+
+/* ── EMPTY STATE ── */
+.empty { text-align: center; padding: 3.5rem 2rem; color: var(--text-3); }
+.empty-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.5; }
+.empty p { font-size: 0.85rem; }
+
+/* ── NUT INPUTS ── */
+.nut-inp-tbl { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.nut-inp-tbl th { padding: 8px 10px; font-size: 0.7rem; font-weight: 600; color: var(--text-2); border-bottom: 1px solid var(--border); text-align: left; letter-spacing: 0.04em; }
+.nut-inp-tbl td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.nut-inp-tbl tbody tr:last-child td { border-bottom: none; }
+.nut-inp-tbl input { width: 90px; }
+
+@media (max-width: 600px) {
+  .g2,.g3,.g4 { grid-template-columns: 1fr; }
+  .header { padding: 1rem; }
+}
+</style>
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAE40lEQVR4nO3dS1YTQQCF4QrHuXPZFOxGR8JIdyObgrkr0AFpCKEfVV3Pvvf/Jg48J0kn/7kUgegpdPTt559/Pe8fdbw83p963XezOyZeb60ir3onRIw5NeOucsOEjBg1wi56g4SMPUqGXeSGCBkllAj7JvcGiBmllGgpK2hiRmm5Te2aeEJGC3uOIMkLTcxoZU9rSUETM1pLbS46aGJGLyntRQVNzOgttsHNoIkZo4hpMft9aGAkq0GzzhjNVpOLQRMzRrXW5mzQxIzRLTXKGRpSPgXNOuMo5lploSHlQ9CsM47mulkWGlLegmadcVSX7bLQkELQkHITAscNHN/UMAsNKQQNKQQNKQQNKSe+IYQSFhpSCBpSCBpSCBpSCBpSCBpSCBpSCBpSCLqR54e7v70fgwOCbmCKmajrI2hIIejKrleZla6LoCGFoCtaWmNWuh6ChhSCrmRrhVnpOggaUgi6gtj1ZaXLI2hIIejCUleXlS6LoCGFoAvau7asdDkEXUhulERdBkFDCkEXUGpdWel8BA0pBJ2p9Kqy0nkIGlIIOkOtNWWl9yNoSCHonWqvKCu9D0FDCkHv0Go9Wel0BA0pBJ2o9Wqy0mkIOkGvuIg6HkFDCkFH6r2Sve//KAgaUvh/CiM8P9z9WPnr780eSAjh9uHpa8v7O5ovvR/AyDZCnvw+/9k0bMxjoWdEhryketis9DLO0FcyYw7hfbHRAUFfKBDzpGrUvOOxjKDPCsY8Yak7IOiDYqXnEXSoss4Tjh6NETSk2AddcZ0nrHRD9kFDC0ELYKXfETSkELQIVvoVQUMKQQthpQk63D48/ap8F/xaaUP2Qautmtr1pLIP+qzWirLOjVkHrbpmqtcVwzbomRe99Jp2XWfXqG2DXlAqQo4anVgGvbFeuTEOE7PjSvOp73lTlCm/KTdMyM7sPvW9c7XWwh4+ZKdPibPQcYaPFq+sztCOZ8oQvK7bKmjoswnaaaXmuFy/TdDwYBG0yzptcXgeLIKGD/mgHVYphfrzYfWDFfUXc43LD1fkF3riHHMIPtdvEzQ8WATtsk5bHJ4Hi6Dhg6AhRT5ohy+zKdSfD/mg4YWgIYWgIYWgIYWgIYWgIYWgIYWgIUU+aJdfm4yl/nzIBw0vBA0pFkGrf5mN5fA8WAQNHzZBO6zTGpfrtwk6BJ8X9ZrTdVsFHYLXixuC3/XaBQ1tlkG7rJbLdV6yDDoE/Rdb/fqWWP3LSUuUPmfnGvLEdqEvqUSgch05CPrs6DEc/fGXwpFjxpGOIIT8EUGvGDlsQp5H0BFGCpuQ1xF0gp5hE3Icgs5QM3AC3oegC9sTOfGWQ9CQwvvQkELQkELQkELQkELQkELQkELQkELQkELQkHLz8nh/6v0ggBJeHu9PLDSkEDSkEDSkEDSk3ITwepju/UCAHFPDLDSkEDSkvAXNsQNHddkuCw0pH4JmpXE0182y0JDyKWhWGkcx1yoLDSmzQbPSGN1So4sLTdQY1Vqbq0cOosZotprkDA0pm0Gz0hhFTItRC03U6C22wegjB1Gjl5T2ks7QRI3WUptL/qaQqNHKntay4uQfS0cNOaOZ9bYda43ScpvKfh+aqFFKiZaKxsgRBHuUHMUq60rYiFHjq3vV4wJhY07NY2qz8y9xe2v1vVbXb+iIXFPPNwr+A1yryK9VVcE2AAAAAElFTkSuQmCC">
+<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjogIklNQyBBcXVhIiwgInNob3J0X25hbWUiOiAiSU1DIEFxdWEiLCAiZGVzY3JpcHRpb24iOiAiT3B0aW1pemFkb3IgZGUgbWV6Y2xhcyBsXHUwMGVkcXVpZGFzIGRlIGZlcnRpbGl6YW50ZXMiLCAic3RhcnRfdXJsIjogIi4iLCAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwgImJhY2tncm91bmRfY29sb3IiOiAiIzBENEY2RSIsICJ0aGVtZV9jb2xvciI6ICIjMUE3RkFGIiwgIm9yaWVudGF0aW9uIjogInBvcnRyYWl0LXByaW1hcnkiLCAiaWNvbnMiOiBbeyJzcmMiOiAiZGF0YTppbWFnZS9wbmc7YmFzZTY0LGlWQk9SdzBLR2dvQUFBQU5TVWhFVWdBQUFNQUFBQURBQ0FZQUFBQlMzR3dIQUFBRk9rbEVRVlI0bk8zZFBYYmJWaFNGVVZBcmZYcG5VdFpza3NwU2w5bllrN0w2ak1BcFpOaVVSSUlBOFg0QW5MM2JaSWtrZkw5M1FVcVdUME5ubjc1OC9kSDdPZERQeS9QanFlZmpOMzl3QTgrVTFrRTBlVEJEenoxYXhGRDFBUXcrSmRRTW9jb1hOdmpVVUNPRW9sL1E0Tk5DeVJDS2ZDR0RUdzhsUW5oWSt3VU1QNzJVbUwxVkFSaCtlbHM3ZzNldEVJUFBGdDF6UzdSNEF4aCt0dXFlMlZ3VWdPRm42NWJPNk93QUREOTdzV1JXWndWZytObWJ1VE83K21OUTJMT2JBVGo5MmFzNXN6c1pnT0ZuNzI3TjhOVUFERDlITVRYTDNnTVE3V0lBVG4rTzV0cE0yd0JFK3hDQTA1K2p1alRiTmdEUjNnVGc5T2ZvM3MrNERVQzBYd0U0L1VseFB1czJBTkVFUUxTSFlYRDdRNTV4NW0wQW9nbUFhQUlnMnNuOVA4bHNBS0lKZ0dnQ0lKb0FpQ1lBb2dtQWFBSWdtZ0NJSmdDaUNZQm9BdWpzKzlQbi8zby9oMlFDNkdnY2ZoSDBJd0NpQ2FDVDk2ZStMZENIQUlnbWdBNnVuZmEyUUhzQ0lKb0FHcnQxeXRzQ2JRbUFhQUpvYU83cGJndTBJd0NpQ2FDUnBhZTZMZENHQUlnbWdBYnVQYzF0Z2ZvRVVObmFJUlpCWFFJZ21nQXFLblY2MndMMUNJQm9BcWlrOUtsdEM5UWhBS0lKb0lKYXA3VXRVSjRBaUNhQXdtcWYwclpBV1FJZ21nQUthblU2MndMbENJQm9BaWlrOWFsc0M1UWhnQUo2RGFNSTFoTUEwUVN3VXU5VHVQZmo3NTBBaUNhQUZiWnkrbTdsZWV5UkFJZ21nRHR0N2RUZDJ2UFppejk2UDRFZCszZml2LzNkN0Ztd3l1blRsNjgvZWorSlBmbis5UG1mQmY5Nzh4RCtldnIyWit2SDNETWJZS2FGZ3o4YXQ0U05zRkhlQTh4dzUvQ2ZtN3BkS3NwN2dXVUVjRU9CNFI4MWk0RDVCRENoNFBDUG1rUmdDOHduQUtJSjRJb0twLy9JRnRnUUFSeVlDRzRUd0FVVlQvK1JOOFFiSVlDRHN3V21DWUJvQWdoZ0Mxd25BS0lKSUlRdGNKa0FpQ2FBeTJyLzlHYVhudzYxQlQ0U0FORUU4TTdaS1ZucmxPNzZkd05zZ2JjRVFEUUJuTGx3T3BZK3JUZnhOOE5zZ2Q4RThOUEVVSlFhMmswTS8wZ0Vyd1F3ejlyaDNkVHc4NXZmQ2pFc1BnMlgvQ1RuNWdjLy9iZEkrSzBReTQxRDdmY0NIVUQ4Qm5Bdm5MMEZ2QWNnV25RQVR2OVh5ZGNoT2dDSURTRDUxTHNrOVhyRUJnRERFQnBBNm1sM1MrSjFpUXdBUm5FQkpKNXlTNlJkbitodmhLWDlZVTlKL1daWTNBYUFjN0VCT1AzZlNyMGVzUUhBTUlRR2tIcmEzWko0WFNJRGdKRUFpQllYUU9LYVh5THQrc1FGQU9jRVFEUUJFRTBBUkJNQTBRUkFOQUVRTFM2QTFCLzduU3Z0K3NRRkFPY0VRTFRJQU5MVy9GeUoxeVV5QUJqRkJwQjQyazFKdlI2eEFjQXdoQWVRZXVxOWwzd2RvZ01ZaHV3Ly9HSHcrdU1ESUpzQWh0eFRNUFYxbnhQQVQybkRrUFo2cnhIQW1aU2hTSG1kYzBUL2J0QXBSL3pMNFFiL0l4dmdpcU1OeTlGZVR5a0NtSENVb1RuSzY2akJMZEJNZTd3bE12aTNDV0NoUFlSZzhPY1R3SjIyR0lMQlgwNEFCZlNNd2RDdkk0RENXc1JnNk1zUlFBTnJvakRzZFFtQWFMNFBRRFFCRUUwQVJCTUEwUVJBTkFFUVRRQkVFd0RSQkVBMEFSQk5BRVI3ZUhsK1BQVitFdEREeS9QanlRWWdtZ0NJSmdDaVBRekQ2NzFRN3ljQ0xZMHpid01RVFFCRSt4V0EyeUJTbk0rNkRVQzBOd0hZQWh6ZCt4bTNBWWoySVFCYmdLTzZOTnMyQU5FdUJtQUxjRFRYWnRvR0lOclZBR3dCam1KcWxpYzNnQWpZdTFzemZQTVdTQVRzMVp6WjlSNkFhTE1Dc0FYWW03a3pPM3NEaUlDOVdES3JpMjZCUk1EV0xaM1J4ZThCUk1CVzNUT2JxNGJaUDYvRUZxdzVsRmQ5Q21RYjBOdmFHVno5TWFnSTZLWEU3QlVkWHJkRXRGRHkwSzF5ZWd1QkdtcmNiVlM5ZlJFQ0pkUzh6VzV5L3k0RTd0SGkvV1h6TjdCaVlFcnJEMVc2ZjRJamlHeTlQMFg4SDJkWTJwbklJOE9MQUFBQUFFbEZUa1N1UW1DQyIsICJzaXplcyI6ICIxOTJ4MTkyIiwgInR5cGUiOiAiaW1hZ2UvcG5nIn0sIHsic3JjIjogImRhdGE6aW1hZ2UvcG5nO2Jhc2U2NCxpVkJPUncwS0dnb0FBQUFOU1VoRVVnQUFBZ0FBQUFJQUNBWUFBQUQwZU5UNkFBQVF0RWxFUVZSNG5PM2NNWmJiVmhLR1ViYU9jK1hTcHV6ZGVDSzFvL0Z1cEUzWnVWY2dCeklscXB0a0V5U0FWNi8rZStNNVl3Q0dXZDhyVW5vNnNLc1BuejUvSFgwTkFCWDkvY2R2VDZPdklZbUh2UUZESG1CZDRtQjlIdWlEREh1QU1VVEJZenk4aFF4OGdKb0V3VEllMWcwTWZZQzVpSUczZVVCbkdQZ0F2UWlDMXp5UUV3WS9RRzlDNElmNEIySG9BMlJLajRIWW16ZjRBVGdjY2tNZzdxWU5mZ0RPU1F1QmlKczE5QUZZSWlFR1d0K2d3US9BSXpxSHdMdlJGN0FWd3grQVIzV2VKZTNLcHZPL0xBREc2YllOYUhNekJqOEFlK2dTQXRQZmhNRVB3QWl6aDhEVXZ3RXcvQUVZWmZZWk5HVzl6UDdRQWVobHhtM0FkQnNBd3grQWFtYWNUVk1Gd0l3UEdJQU1zODJvS1ZZV3N6MVVBTExOOEpWQStRMkE0US9BYkdhWVhhVURZSVlIQ0FEblZKOWhKVmNVMVI4YUFDeFI4U3VCY2hzQXd4K0FiaXJPdGxJQlVQRUJBY0FhcXMyNE1nRlE3Y0VBd05vcXpib1NBVkRwZ1FEQWxxck12T0VCVU9WQkFNQmVLc3krb1FGUTRRRUF3QWlqWitDd0FCaDk0d0F3MnNoWk9DUUFESDhBK0diVVROdzlBQXgvQVBqWmlObTRhd0FZL2dCdzN0NHpjcmNBTVB3QjRMbzlaK1V1QVdENEE4QnQ5cHFabXdlQTRROEF5K3d4T3pjTkFNTWZBTzZ6OVF3ZC9qY0JBZ0Q3Mnl3QW5QNEI0REZienRKTkFzRHdCNEIxYkRWVFZ3OEF3eDhBMXJYRmJQVWJBQUFJdEdvQU9QMER3RGJXbnJHckJZRGhEd0RiV25QV3JoSUFoajhBN0dPdG1lczNBQUFRNk9FQWNQb0hnSDJ0TVhzZkNnRERId0RHZUhRRyt3b0FBQUxkSFFCTy93QXcxaU96MkFZQUFBTGRGUUJPL3dCUXc3MHoyUVlBQUFJdERnQ25md0NvNVo3WnZDZ0FESDhBcUducGpQWVZBQUFFdWprQW5QNEJvTFlsczlvR0FBQUNDUUFBQ0hSVEFGai9BOEFjYnAzWk5nQUFFT2pOQUhENkI0QzUzREs3YlFBQUlORFZBSEQ2QjRBNXZUWERiUUFBSUpBQUFJQkFGd1BBK2g4QTVuWnRsdHNBQUVDZ3N3SGc5QThBUFZ5YTZUWUFBQkJJQUFCQUlBRUFBSUZlQllEdi93R2dsM096M1FZQUFBSUpBQUFJOUZNQVdQOERRRTh2Wjd3TkFBQUVFZ0FBRUVnQUFFQ2c3d0hnKzM4QTZPMTAxdHNBQUVBZ0FRQUFnUVFBQUFRU0FBQVE2TjNoNEFlQUFKRGlPUE50QUFBZ2tBQUFnRUFDQUFBQ0NRQUFDQ1FBQUNDUUFBQ0FRRS8rQ0NBQTVMRUJBSUJBQWdBQUFna0FBQWdrQUFBZ2tBQUFnRUFDQUFBQ0NRQUFDQ1FBQUNDUUFBQ0FRQUlBQUFJSkFBQUlKQUFBSUpBQUFJQkFBZ0FBQWdrQUFBZ2tBQUFna0FBQWdFQUNBQUFDQ1FBQUNDUUFBQ0NRQUlCZ2Z6My8rcy9vYXdER0VBQVE2amo4UlFCa0VnQUFFRWdBUUtDWHAzNWJBTWdqQUFBZ2tBQ0FNSmRPKzdZQWtFVUFBRUFnQVFCQjNqcmwyd0pBRGdFQUFJRUVBSVM0OVhSdkN3QVpCQUFBQkJJQUVHRHBxZDRXQVBvVEFBQVFTQUJBYy9lZTVtMEJvRGNCQUFDQkJBQTA5dWdwM2hZQStoSUEwTlJhdzFzRVFFOENBQUFDQ1FCb2FPMVR1eTBBOUNNQUFDQ1FBSUJtdGpxdDJ3SkFMd0lBQUFJSkFHaGs2MU82TFFEMElRQUFJSkFBZ0NiMk9wM2JBa0FQQWdBQUFna0FhR0R2VTdrdEFNeFBBQUJBSUFFQWt4dDFHcmNGZ0xrSkFBQUlKQUJnWXFOUDRhUC8rY0Q5QkFCTXFzcndyWElkd0RJQ0FBQUNDUUNZVUxWVGQ3WHJBZDRtQUFBZ2tBQ0F5VlE5YlZlOUx1QThBUUFBZ1FRQVRLVDZLYnY2OVFFL0NBQUFDQ1FBWUJLem5LNW51VTVJSndBQUlKQUFnQW5NZHFxZTdYb2hrUUFBZ0VBQ0FJcWI5VFE5NjNWRENnRUFBSUVFQUJRMit5bDY5dXVIemdRQUZOVmxlSGE1RCtoR0FBQkFJQUVBQlhVN05YZTdIK2hBQUFCQUlBRUF4WFE5TFhlOUw1aVZBQUNBUUFJQUN1bCtTdTUrZnpBVEFRQUFnUVFBRkpGeU9rNjVUNmhPQUFCQUlBRUFCYVNkaXRQdUZ5b1NBQUFRU0FEQVlLbW40ZFQ3aGlvRUFBQUVFZ0F3VVBvcE9QMytZU1FCQUlNWWZ0OTREakNHQUFDQVFBSUFCbkRxL1pubkFmc1RBQUFRU0FEQXpweDJ6L05jWUY4Q0FBQUNDUURZa1ZQdWRaNFA3RWNBQUVBZ0FRQTdjYnE5amVjRSt4QUFBQkJJQU1BT25HcVg4YnhnZXdJQUFBSUpBTmlZMCt4OVBEZllsZ0FBZ0VBQ0FEYmtGUHNZencrMkl3QmdJNGJYT2p4SDJJWUFBSUJBQWdBMjROUzZMczhUMWljQUFDQ1FBSUNWT2ExdXczT0ZkUWtBQUFna0FHQkZUcW5iOG54aFBRSUFBQUlKQUZpSjAraytQR2RZaHdBQWdFQUNBRmJnVkxvdnp4c2VKd0FBSUpBQWdBYzVqWTdodWNOamZobDlBZERBbnd2K3Q3OXZkaFVBQ3p4OStQVDU2K2lMZ0puODlmenIvMWI4dnhNRUQvcjQvT1g5Nkd1QUdka0F3QTFXSHZxblRyY0hZZ0RZalEwQVhMRGgwTCtGR0ZqQUZnQ1c4eU5BT0dQdzhEOGNsdjJ1SUo0ZkJNSnl2Z0tBRXdVRy82bGpCTmdHQUt1ekFZRC9GQnYrcDJ3RGJtQUxBTXZZQUJDdjhPQS9aUnNBck1vR2dHaVREUDlUdGdGWDJBTEE3UVFBc1NZYy9rY2lBSGlZQUNEU3hNUC9TQVJjWUFzQXR4RUF4R2t3L0k5RUFIQTNBVUNVUnNQL1NBU2NZUXNBYnhNQXhHZzQvSTlFQUxDWUFBQmFzZ1dBNndRQUVScWYvbzlzQVlCRkJBRHRCUXovSXhId2dpMEFYQ1lBQUNDUUFLQzFvTlAva1MzQUM3WUFjSjRBb0szQTRYOGtBbDRRQWZDYUFBQ0FRQUlBaUdBTEFEOFRBTFFVdlA0LzhqVUFjSlVBQUdMWUFzQVBBZ0FBQWdrQTJySCsvODdYQUdmWUFzQTNBZ0FBQWdrQUlJNHRBQWdBQUlna0FHakY5Lyt2K0IzQUJiWUFwQk1BQUJCSUFBQ3hiQUZJSmdBQUlKQUFBS0xaQXBCS0FBRHhSQUNKQkFBQUJCSUFBQWRiQVBJSUFBQUlKQUFBL21NTFFCSUJBQUNCQkFDdGZIeis4di9SMTFETTc2TXZZRGEyQUtRUUFBQVFTQUFBdkdBTFFBSUJBQUNCQkFEdCtCM0FkNzcvZjRBdEFOMEpBQUFJSkFBQUxyQUZvRE1CUUV1K0JyRCtCNjRUQUFCWDJBTFFsUUNnSlIvYXJNbjdSRWNDZ001UzErQ3A5dzBzSUFCbzU4VnBMVzBZcHQzdmJtd0I2RVlBQUVBZ0FVQXJGMDVwS2FmaWxQc2N4aGFBVGdRQUtib1B4KzczQjZ4TUFOQ0cweGw3OEo3UmhRQWdTZGRUY3RmN0FqWWtBR2hod2FtczI3RHNkajlUc0FXZ0F3RkFvaTVEczh0OUFBTUlBS1ozNTJsczl1RTUrL1ZQenhhQTJRa0FrczA2UkdlOWJxQVFBY0RVVmppRnpUWk1aN3ZlMW13Qm1Oa3ZveThBQ2pnTzFUK0hYc1YxQmord0toc0FwclhCNmF2cWtLMTZYUnhzQVpqWDA0ZFBuNytPdmdoWWFvY1AzUXJiQUlOL0loK2Z2N3dmZlEyd2hBMEFuRGQ2K0k3KzV3UE4yUUF3blVFcjF6MDJBb2IrNUd3Qm1Ja2ZBY0p0VG9mem1qRmc2QU5EMkFBd2xhSS91Rm9TQkFaK2M3WUF6TUlHQUI1bnFBUFQ4U05BcGxIMDlBOC84WjR5Q3dFQUFJRUVBRk53cW1JbTNsZG1JQUFBSUpBQW9EeW5LV2JrdmFVNkFRQUFnUVFBcFRsRk1UUHZMNVVKQUFBSUpBQW95K21KRHJ6SFZDVUFLTW1ISnAxNG42bElBQUJBSUFGQU9VNUxkT1M5cGhvQkFBQ0JCQUNsT0NYUm1mZWJTZ1FBQUFRU0FKVGhkRVFDN3psVkNBQUFDQ1FBS01HcGlDVGVkeW9RQUFBUVNBQXduTk1RaWJ6M2pDWUFBQ0NRQUdBb3B5Q1NlZjhaU1FBQVFDQUJ3REJPUCtDL0E4WjUrdkRwODlmUkZ3R1grSEJrZGgrZnY3d2ZmUTF3amcwQVpSbitkT0E5cGlvQkFBQ0JCQUFsT1RYUmlmZVppZ1FBQUFRU0FKVGp0RVJIM211cUVRQUFFRWdBVUlwVEVwMTV2NmxFQUFCQUlBRkFHVTVISlBDZVU0VUFBSUJBQW9BU25JcEk0bjJuQWdFQUFJRUVBQUFFRWdBTVp4MUtJdTg5b3drQUFBZ2tBQUFna0FCZ0tHdFFrbm4vR1VrQUFFQWdBUUFBZ1FRQUFBUVNBQUFRU0FBQVFDQUJ3REIrQVEzK08yQWNBUUFBZ1FRQUFBUVNBQUFRU0FBQVFDQUJBQUNCQkFBQUJCSUFBQkJJQUFCQUlBRUFBSUVFQUFBRUVnQUFFRWdBQUVBZ0FjQXdINSsvdkI5OURUQ2EvdzRZUlFBQVFDQUJBQUNCQkFBQUJCSUFBQkJJQUFCQUlBSEFVSDRCVFRMdlB5TUpBQUFJSkFBQUlKQUFZRGhyVUJKNTd4bE5BQUJBSUFFQUFJRUVBQ1ZZaDVMRSswNEZBZ0FBQWdrQXluQXFJb0gzbkNvRUFBQUVFZ0NVNG5SRVo5NXZLaEVBQUJCSUFGQ09VeElkZWErcFJnQUFRQ0FCUUVsT1MzVGlmYVlpQVFBQWdRUUFaVGsxMFlIM21Lb0VBS1g1OEdSbTNsOHFFd0FBRUVnQVVKNVRGRFB5M2xLZEFHQUtQa3laaWZlVkdRZ0FwdUZEbFJsNFQ1bUZBQUNBUUFLQXFUaGRVWm4zazVrSUFLYmpRNWFLdkpmTVJnQXdKUisyVk9KOVpFWUNnR241MEtVQzd5R3pFZ0JNelljdkkzbi9tSmtBWUhvK2hCbkJlOGZzQkFBdCtEQm1UOTQzT2hBQXRPRkRtVDE0eitoQ0FOQ0tEMmUyNVAyaUV3RkFPejZrMllMM2ltNmVQbno2L0hYMFJjQlcvbnIrOVovUjE4RGNESDY2c2dHZ05SL2VQTUw3UTJjQ2dQWjhpSE1QN3czZCtRcUFLTDRTNEMwR1B5bHNBSWppdzUxcnZCOGtFUURFOFNIUE9kNEwwdmdLZ0dpK0VzRGdKNVVBZ0lNUVNHVHdrODVYQUhBd0ROTDQ5dzAyQVBDS2JVQmZCai84SUFEZ0FpSFFoOEVQcndrQWVJTVFtSmZCRDVjSkFMaVJFSmlId1E5dkV3Q3drQkNveStDSDJ3a0F1Sk1RcU1QZ2grVUVBS3hBRE96UDBJZkhDQUJZbVJqWWpxRVA2eEVBc0JFaHNCNkRIOVluQUdBbmd1QjJCajVzVHdEQUFHTGdOVU1mOWlVQW9JREVJRER3WVN3QkFFVjFpZ0xESHVvUkFEQ1JHYUxBc0ljNUNBQm9ac3RJTU55aER3RUFBSUhlamI0QUFHQi9BZ0FBQWdrQUFBZ2tBQUFna0FBQWdFQUNBQUFDQ1FBQUNDUUFBQ0NRQUFDQVFBSUFBQUlKQUFBSUpBQUFJSkFBQUlCQUFnQUFBZ2tBQUFna0FBQWdrQUFBZ0VBQ0FBQUNDUUFBQ0NRQUFDQ1FBQUNBUUFJQUFBSUpBQUFJSkFBQUlOQzd2Ly80N1duMFJRQUErL243ajkrZWJBQUFJSkFBQUlCQUFnQUFBZ2tBQUFna0FBQWdrQUFBZ0VEdkRvZHZmeHhnOUlVQUFOczd6bndiQUFBSUpBQUFJSkFBQUlCQUFnQUFBbjBQQUQ4RUJJRGVUbWU5RFFBQUJCSUFBQkJJQUFCQW9KOEN3TzhBQUtDbmx6UGVCZ0FBQWdrQUFBajBLZ0I4RFFBQXZaeWI3VFlBQUJCSUFBQkFJQUVBQUlIT0JvRGZBUUJBRDVkbXVnMEFBQVM2R0FDMkFBQXd0MnV6M0FZQUFBSUpBQUFJZERVQWZBMEFBSE42YTRiYkFBQkFvRGNEd0JZQUFPWnl5K3kyQVFDQVFEY0ZnQzBBQU16aDFwbHRBd0FBZ1FRQUFBUzZPUUI4RFFBQXRTMloxVFlBQUJCb1VRRFlBZ0JBVFV0bjlPSU5nQWdBZ0ZydW1jMitBZ0NBUUhjRmdDMEFBTlJ3NzB5MkFRQ0FRSGNIZ0MwQUFJejF5Q3kyQVFDQVFBOEZnQzBBQUl6eDZBeCtlQU1nQWdCZ1gydk1YbDhCQUVDZ1ZRTEFGZ0FBOXJIV3pGMXRBeUFDQUdCYmE4N2FWYjhDRUFFQXNJMjFaNnpmQUFCQW9OVUR3QllBQU5hMXhXemRaQU1nQWdCZ0hWdk4xTTIrQWhBQkFQQ1lMV2VwM3dBQVFLQk5BOEFXQUFEdXMvVU0zWHdESUFJQVlKazladWN1WHdHSUFBQzR6VjR6YzdmZkFJZ0FBTGh1ejFtNTY0OEFSUUFBbkxmM2pOejlUd0dJQUFENDJZalpPT1NQQVlvQUFQaG0xRXdjOXZjQWlBQUEwbzJjaFVQL0lpQVJBRUNxMFROdytOOEVPUG9CQU1EZUtzeSs0UUZ3T05SNEVBQ3doeW96cjBRQUhBNTFIZ2dBYktYU3JDc1RBSWREclFjREFHdXFOdU5LQmNEaFVPOEJBY0NqS3M2MmNoZDA2c09uejE5SFh3TUEzS3ZpNEQ4cXR3RTRWZm5CQWNBMTFXZFk2UUE0SE9vL1FBQjRhWWJaVmY0Q1QvbEtBSURLWmhqOFIrVTNBS2RtZXJBQVpKbHRSazBWQUlmRGZBOFlnUDVtbkUzVFhmQXBYd2tBTU5LTWcvOW91ZzNBcVprZlBBQnptMzBHVFgzeHAyd0RBTmpEN0lQL3FNVk5uQklDQUd5aHkrQS9hblV6cDRRQUFHdm9OdmlQcHY0TndEVmQvNFVCc0ovT3M2VHRqWjJ5RFFCZ2ljNkQvNmo5RGI0a0JnQTRKMkhvbjRxNjJWTkNBSURESVcvd0gwWGU5Q2toQUpBcGRmQWZSZC84UzJJQW9MZjBvWC9LZ3poRENBRDBZdkMvNW9IY1FCQUF6TVhBZjVzSHRKQVlBS2pKMEYvR3czcVFJQUFZdzhCL2pJZTNBVkVBc0M3RGZuMGU2TTdFQWNCNWh2eSsvZ1dtbmZaNHlNOWJoQUFBQUFCSlJVNUVya0pnZ2c9PSIsICJzaXplcyI6ICI1MTJ4NTEyIiwgInR5cGUiOiAiaW1hZ2UvcG5nIn1dfQ==">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="IMC Aqua">
+<meta name="theme-color" content="#1A7FAF">
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">
+    <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Gota de agua estilizada -->
+      <path d="M13 3 C13 3 5 12 5 17 C5 21.4 8.6 25 13 25 C17.4 25 21 21.4 21 17 C21 12 13 3 13 3Z" fill="rgba(255,255,255,0.9)"/>
+      <path d="M13 10 C13 10 8.5 15.5 8.5 18.5 C8.5 21 10.5 22.5 13 22.5" stroke="rgba(13,79,110,0.4)" stroke-width="1" fill="none" stroke-linecap="round"/>
+      <circle cx="10.5" cy="18" r="1.2" fill="rgba(58,175,224,0.7)"/>
+    </svg>
+  </div>
+  <div class="header-text">
+    <h1>IMC Aqua</h1>
+    <p>Optimizador de mezclas líquidas de fertilizantes</p>
+  </div>
+  <div class="header-right">
+    <span class="status-pill" id="status-pill">
+      <span class="status-dot"></span>
+      <span id="status-txt">Sin optimizar</span>
+    </span>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('formulacion',this)">Formulación</button>
+    <button class="tab" onclick="switchTab('db',this)">Base de datos</button>
+    <button class="tab" onclick="switchTab('resultado',this)">Resultado</button>
+  </div>
+
+  <!-- ══ FORMULACIÓN ══ -->
+  <div id="tab-formulacion" class="panel active">
+
+    <div class="card">
+      <div class="card-title">Configuración general</div>
+      <div class="g2" style="margin-bottom:1rem;">
+        <div class="field"><label>Nombre de la formulación</label><input type="text" id="nombre" value="Nueva mezcla NPK"></div>
+        <div class="field"><label>Modo de entrada</label>
+          <select id="modo" onchange="toggleModo()">
+            <option value="ley">% en mezcla (ley)</option>
+            <option value="ha">kg nutriente / ha</option>
+          </select>
+        </div>
+      </div>
+      <div class="g3">
+        <div class="field"><label>Base de cálculo (kg)</label><input type="number" id="base_kg" value="1000" min="100" max="50000"></div>
+        <div class="field" id="lha_f" style="display:none;"><label>Volumen aplicación (L/ha)</label><input type="number" id="vol_ha" value="200"></div>
+        <div class="field" id="sup_f"  style="display:none;"><label>Superficie (ha)</label><input type="number" id="sup" value="1"></div>
+        <div class="field"><label>Objetivo del optimizador</label>
+          <select id="objetivo">
+            <option value="minimizar_costo">Minimizar costo</option>
+            <option value="maximizar_concentracion">Maximizar concentración</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Control de cloro</div>
+      <div class="g3">
+        <div class="field"><label>Modo de cloro</label>
+          <select id="cloro_modo" onchange="toggleCloro()">
+            <option value="cloro_maximo">Cloro máximo</option>
+            <option value="sin_restriccion">Sin restricción</option>
+            <option value="chloride_free">Chloride free</option>
+          </select>
+        </div>
+        <div class="field" id="cl_lim_f"><label>Límite Cl (%)</label><input type="number" id="cl_lim" value="2" step="0.1" min="0" max="20"></div>
+        <div class="field" id="cl_umb_f" style="display:none;"><label>Umbral chloride-free (%)</label><input type="number" id="cl_umbral" value="0" step="0.1" min="0"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Objetivos nutricionales</div>
+      <table class="nut-inp-tbl">
+        <thead><tr><th>Nutriente</th><th>Exacto (%)</th><th>Mínimo (%)</th><th>Máximo (%)</th></tr></thead>
+        <tbody>
+          <tr><td style="font-weight:500;">N total</td><td><input type="number" id="n_exact" value="8"  step="0.1" min="0"></td><td><input type="number" id="n_min" placeholder="—" step="0.1" min="0"></td><td><input type="number" id="n_max" placeholder="—" step="0.1" min="0"></td></tr>
+          <tr><td style="font-weight:500;">P₂O₅</td>  <td><input type="number" id="p_exact" placeholder="—" step="0.1" min="0"></td><td><input type="number" id="p_min" value="2"  step="0.1" min="0"></td><td><input type="number" id="p_max" placeholder="—" step="0.1" min="0"></td></tr>
+          <tr><td style="font-weight:500;">K₂O</td>   <td><input type="number" id="k_exact" placeholder="—" step="0.1" min="0"></td><td><input type="number" id="k_min" value="5"  step="0.1" min="0"></td><td><input type="number" id="k_max" placeholder="—" step="0.1" min="0"></td></tr>
+          <tr><td style="font-weight:500;">Ca</td>    <td><input type="number" id="ca_exact" placeholder="—" step="0.1" min="0"></td><td><input type="number" id="ca_min" placeholder="—" step="0.1" min="0"></td><td><input type="number" id="ca_max" placeholder="—" step="0.1" min="0"></td></tr>
+          <tr><td style="font-weight:500;">Mg</td>    <td><input type="number" id="mg_exact" placeholder="—" step="0.1" min="0"></td><td><input type="number" id="mg_min" placeholder="—" step="0.1" min="0"></td><td><input type="number" id="mg_max" placeholder="—" step="0.1" min="0"></td></tr>
+          <tr><td style="font-weight:500;">S</td>     <td><input type="number" id="s_exact"  placeholder="—" step="0.1" min="0"></td><td><input type="number" id="s_min"  placeholder="—" step="0.1" min="0"></td><td><input type="number" id="s_max"  placeholder="—" step="0.1" min="0"></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Costos adicionales ($/kg producto final)</div>
+      <div class="g4">
+        <div class="field"><label>Maquila ($/kg)</label><input type="number" id="maquila"   value="0.05" step="0.01" min="0"></div>
+        <div class="field"><label>Envase ($/kg)</label> <input type="number" id="envase"    value="0.03" step="0.01" min="0"></div>
+        <div class="field"><label>Logística ($/kg)</label><input type="number" id="logistica" value="0.02" step="0.01" min="0"></div>
+        <div class="field"><label>Margen deseado (%)</label><input type="number" id="margen"    value="25"   step="1"    min="0" max="100"></div>
+      </div>
+    </div>
+
+    <button class="run-btn" onclick="runOptimizer()">Optimizar formulación</button>
+    <div id="spinner" class="spinner"><span class="spin"></span>Calculando solución óptima…</div>
+  </div>
+
+  <!-- ══ BASE DE DATOS ══ -->
+  <div id="tab-db" class="panel">
+    <div class="card">
+      <div class="card-title">Materias primas — editable</div>
+      <div class="db-wrap">
+        <table class="db-tbl">
+          <thead>
+            <tr>
+              <th>ID</th><th>Nombre</th><th>Tipo</th>
+              <th>N%</th><th>P₂O₅%</th><th>K₂O%</th><th>Ca%</th><th>Mg%</th><th>S%</th><th>Cl%</th>
+              <th>Densidad</th><th>Costo</th><th>Unid.</th><th>Bloquear</th>
+            </tr>
+          </thead>
+          <tbody id="db-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RESULTADO ══ -->
+  <div id="tab-resultado" class="panel">
+    <div id="no-result" class="empty">
+      <div class="empty-icon">◎</div>
+      <p>Configura la formulación y ejecuta el optimizador<br>para ver resultados aquí.</p>
+    </div>
+    <div id="result-content" style="display:none;">
+      <div class="g4" id="metric-row" style="margin-bottom:1rem;"></div>
+
+      <div class="card">
+        <div class="card-title">Participación de materias primas</div>
+        <table class="tbl">
+          <thead><tr><th>Materia prima</th><th>Tipo</th><th>kg</th><th>%</th><th style="min-width:100px;">Participación</th><th>$/kg</th><th>Costo $</th></tr></thead>
+          <tbody id="mp-body"></tbody>
+          <tfoot><tr id="mp-total"></tr></tfoot>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Composición nutricional final</div>
+        <div class="nut-grid" id="nut-result"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Cotización completa</div>
+        <div class="g2">
+          <div id="cotiz-left"></div>
+          <div id="cotiz-right"></div>
+        </div>
+      </div>
+
+      <div id="alertas-box"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const DB = [
+  {id:'U01',  n:'Urea',                     c:'hidrosoluble',n_p:46,  p_p:0,  k_p:0,   ca:0, mg:0,   s:0,  cl:0,  d:null, costo:0.35, u:'kg'},
+  {id:'KNO3', n:'Nitrato de potasio',        c:'hidrosoluble',n_p:13.7,p_p:0, k_p:46.3,ca:0, mg:0,   s:0,  cl:0,  d:null, costo:0.95, u:'kg'},
+  {id:'KCL',  n:'Cloruro de potasio',        c:'hidrosoluble',n_p:0,  p_p:0,  k_p:60,  ca:0, mg:0,   s:0,  cl:47, d:null, costo:0.38, u:'kg'},
+  {id:'SOP',  n:'Sulfato de potasio',        c:'hidrosoluble',n_p:0,  p_p:0,  k_p:50,  ca:0, mg:0,   s:18, cl:0,  d:null, costo:1.10, u:'kg'},
+  {id:'MAP',  n:'MAP (fosfato monoamónico)', c:'hidrosoluble',n_p:12, p_p:61, k_p:0,   ca:0, mg:0,   s:0,  cl:0,  d:null, costo:0.90, u:'kg'},
+  {id:'MKP',  n:'MKP (fosfato monopotásico)',c:'hidrosoluble',n_p:0,  p_p:52, k_p:34,  ca:0, mg:0,   s:0,  cl:0,  d:null, costo:1.85, u:'kg'},
+  {id:'CAN',  n:'Nitrato de calcio',         c:'hidrosoluble',n_p:15.5,p_p:0, k_p:0,   ca:26,mg:0,   s:0,  cl:0,  d:null, costo:0.75, u:'kg'},
+  {id:'MGN',  n:'Nitrato de magnesio',       c:'hidrosoluble',n_p:11, p_p:0,  k_p:0,   ca:0, mg:9.5, s:0,  cl:0,  d:null, costo:1.10, u:'kg'},
+  {id:'MgS',  n:'Sulfato de magnesio',       c:'hidrosoluble',n_p:0,  p_p:0,  k_p:0,   ca:0, mg:9.8, s:13, cl:0,  d:null, costo:0.18, u:'kg'},
+  {id:'AS',   n:'Sulfato de amonio',         c:'hidrosoluble',n_p:21, p_p:0,  k_p:0,   ca:0, mg:0,   s:24, cl:0,  d:null, costo:0.32, u:'kg'},
+  {id:'UAN32',n:'UAN 32',                    c:'liquido',     n_p:32, p_p:0,  k_p:0,   ca:0, mg:0,   s:0,  cl:0,  d:1.32, costo:0.52, u:'L'},
+  {id:'UAN28',n:'UAN 28',                    c:'liquido',     n_p:28, p_p:0,  k_p:0,   ca:0, mg:0,   s:0,  cl:0,  d:1.28, costo:0.46, u:'L'},
+  {id:'H3PO4',n:'Ácido fosfórico',           c:'liquido',     n_p:0,  p_p:54, k_p:0,   ca:0, mg:0,   s:0,  cl:0,  d:1.69, costo:0.65, u:'L'},
+  {id:'HNO3', n:'Ácido nítrico (65%)',       c:'liquido',     n_p:16, p_p:0,  k_p:0,   ca:0, mg:0,   s:0,  cl:0,  d:1.39, costo:0.28, u:'L'},
+  {id:'ATS',  n:'Tiosulfato de amonio',      c:'liquido',     n_p:12, p_p:0,  k_p:0,   ca:0, mg:0,   s:26, cl:0,  d:1.32, costo:0.55, u:'L'},
+  {id:'KTS',  n:'Tiosulfato de potasio',     c:'liquido',     n_p:0,  p_p:0,  k_p:25,  ca:0, mg:0,   s:17, cl:0,  d:1.40, costo:0.85, u:'L'},
+  {id:'CaCl2',n:'Cloruro de calcio',         c:'liquido',     n_p:0,  p_p:0,  k_p:0,   ca:18,mg:0,   s:0,  cl:32, d:1.36, costo:0.22, u:'L'},
+  {id:'CANL', n:'Nitrato de calcio líquido', c:'liquido',     n_p:9,  p_p:0,  k_p:0,   ca:11,mg:0,   s:0,  cl:0,  d:1.40, costo:0.45, u:'L'},
+];
+const locked = {};
+
+const BAR_COLORS = ['#1A7FAF','#1A8C6E','#D85A30','#8B5CF6','#BA7517','#D4537E','#378ADD','#639922'];
+
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+function toggleModo() {
+  const m = document.getElementById('modo').value === 'ha';
+  document.getElementById('lha_f').style.display = m ? '' : 'none';
+  document.getElementById('sup_f').style.display  = m ? '' : 'none';
+}
+
+function toggleCloro() {
+  const m = document.getElementById('cloro_modo').value;
+  document.getElementById('cl_lim_f').style.display = m === 'cloro_maximo' ? '' : 'none';
+  document.getElementById('cl_umb_f').style.display  = m === 'chloride_free' ? '' : 'none';
+}
+
+function buildDB() {
+  const tbody = document.getElementById('db-body');
+  tbody.innerHTML = '';
+  DB.forEach((mp, i) => {
+    const lk = !!locked[mp.id];
+    tbody.innerHTML += `<tr style="${lk?'opacity:0.4;':''}" id="dbr${i}">
+      <td style="font-weight:600;font-family:'DM Mono',monospace;font-size:0.72rem;">${mp.id}</td>
+      <td>${mp.n}</td>
+      <td><span class="badge ${mp.c==='liquido'?'b-liq':'b-sol'}">${mp.c==='liquido'?'líquido':'sólido'}</span></td>
+      <td><input type="number" value="${mp.n_p}" step="0.1" min="0" max="100" onchange="DB[${i}].n_p=+this.value"></td>
+      <td><input type="number" value="${mp.p_p}" step="0.1" min="0" max="100" onchange="DB[${i}].p_p=+this.value"></td>
+      <td><input type="number" value="${mp.k_p}" step="0.1" min="0" max="100" onchange="DB[${i}].k_p=+this.value"></td>
+      <td><input type="number" value="${mp.ca}"  step="0.1" min="0" max="100" onchange="DB[${i}].ca=+this.value"></td>
+      <td><input type="number" value="${mp.mg}"  step="0.1" min="0" max="100" onchange="DB[${i}].mg=+this.value"></td>
+      <td><input type="number" value="${mp.s}"   step="0.1" min="0" max="100" onchange="DB[${i}].s=+this.value"></td>
+      <td><input type="number" value="${mp.cl}"  step="0.1" min="0" max="100" onchange="DB[${i}].cl=+this.value"></td>
+      <td><input type="number" value="${mp.d||''}" step="0.01" placeholder="—" onchange="DB[${i}].d=+this.value||null"></td>
+      <td><input type="number" value="${mp.costo}" step="0.01" min="0" onchange="DB[${i}].costo=+this.value"></td>
+      <td>${mp.u}</td>
+      <td><button class="lock-btn" onclick="toggleLock('${mp.id}',${i})" title="${lk?'Desbloquear':'Bloquear'}">${lk?'🔒':'🔓'}</button></td>
+    </tr>`;
+  });
+}
+
+function toggleLock(id) { locked[id] = !locked[id]; buildDB(); }
+
+function gv(id) { const v = document.getElementById(id).value; return v===''?null:parseFloat(v); }
+
+function runOptimizer() {
+  const sp = document.getElementById('spinner');
+  sp.style.display = 'block';
+  document.querySelector('.run-btn').disabled = true;
+  setTimeout(() => {
+    try {
+      const res = optimize();
+      showResult(res);
+      const pill = document.getElementById('status-pill');
+      pill.className = 'status-pill ok';
+      document.getElementById('status-txt').textContent = 'Solución óptima';
+    } catch(e) {
+      const pill = document.getElementById('status-pill');
+      pill.className = 'status-pill err';
+      document.getElementById('status-txt').textContent = 'Sin solución';
+      alert('No se encontró solución factible. Relaje las restricciones nutricionales.');
+    }
+    sp.style.display = 'none';
+    document.querySelector('.run-btn').disabled = false;
+  }, 700);
+}
+
+function optimize() {
+  const cloro_modo = document.getElementById('cloro_modo').value;
+  const cl_lim = gv('cl_lim') ?? 100;
+  const base    = gv('base_kg') ?? 1000;
+  const targets = {
+    n:  { exact: gv('n_exact'),  min: gv('n_min'),  max: gv('n_max') },
+    p:  { exact: gv('p_exact'),  min: gv('p_min'),  max: gv('p_max') },
+    k:  { exact: gv('k_exact'),  min: gv('k_min'),  max: gv('k_max') },
+    ca: { exact: gv('ca_exact'), min: gv('ca_min'), max: gv('ca_max') },
+    mg: { exact: gv('mg_exact'), min: gv('mg_min'), max: gv('mg_max') },
+    s:  { exact: gv('s_exact'),  min: gv('s_min'),  max: gv('s_max') },
+  };
+
+  const avail = DB.filter(mp => !locked[mp.id]);
+  const n = avail.length;
+  const props = ['n_p','p_p','k_p','ca','mg','s','cl'];
+  const tkeys = ['n','p','k','ca','mg','s'];
+
+  let fracs = new Array(n).fill(1/n);
+
+  for (let it = 0; it < 3000; it++) {
+    const nut = computeNut(fracs, avail, props);
+    const grad = new Array(n).fill(0);
+    const step = 0.04 / Math.sqrt(it+1);
+
+    for (let i = 0; i < n; i++) {
+      const ckg = avail[i].costo / (avail[i].d || 1);
+      grad[i] += ckg * 0.25;
+
+      tkeys.forEach((tk, ni) => {
+        const t = targets[tk];
+        const cur = nut[ni];
+        const prop = avail[i][props[ni]] / 100;
+        if (t.exact !== null) {
+          if (cur > t.exact + 0.15) grad[i] += prop * 6;
+          else if (cur < t.exact - 0.15) grad[i] -= prop * 6;
+        } else {
+          if (t.min !== null && cur < t.min - 0.05) grad[i] -= prop * 9;
+          if (t.max !== null && cur > t.max + 0.05) grad[i] += prop * 9;
+        }
+      });
+
+      if (cloro_modo === 'cloro_maximo' && nut[6] > cl_lim + 0.05) grad[i] += avail[i].cl/100 * 12;
+      if (cloro_modo === 'chloride_free' && avail[i].cl > (gv('cl_umbral')||0)) grad[i] += 25;
+    }
+
+    for (let i = 0; i < n; i++) fracs[i] = Math.max(0, fracs[i] - step * grad[i]);
+    const tot = fracs.reduce((a,b)=>a+b, 0);
+    if (tot === 0) fracs = new Array(n).fill(1/n);
+    else fracs = fracs.map(f => f/tot);
+  }
+
+  fracs = fracs.map(f => f < 0.005 ? 0 : f);
+  const tot2 = fracs.reduce((a,b)=>a+b, 0);
+  if (tot2 > 0) fracs = fracs.map(f => f/tot2);
+
+  const nut = computeNut(fracs, avail, props);
+  const mpCost = fracs.reduce((s,f,i) => s + f * avail[i].costo/(avail[i].d||1), 0);
+  const maquila   = gv('maquila')   || 0;
+  const envase    = gv('envase')    || 0;
+  const logistica = gv('logistica') || 0;
+  const margen    = (gv('margen')   || 0) / 100;
+  const costoTotal  = mpCost + maquila + envase + logistica;
+  const precioFinal = costoTotal / (1 - margen);
+
+  let dN=0, dD=0;
+  fracs.forEach((f,i) => { if(avail[i].d){ dN+=f*avail[i].d; dD+=f; } });
+  const dens = dD > 0 ? dN/dD : 1.3;
+
+  const mps = avail.map((mp,i) => ({
+    ...mp, frac: fracs[i],
+    kg: +(fracs[i]*base).toFixed(2),
+    costoTot: +(fracs[i]*base*mp.costo/(mp.d||1)).toFixed(2)
+  })).filter(mp => mp.frac > 0.001);
+
+  return { mps, nut, mpCost, costoTotal, precioFinal, dens, maquila, envase, logistica, margen, base, targets, cl_lim, cloro_modo };
+}
+
+function computeNut(fracs, avail, props) {
+  return props.map(p => fracs.reduce((s,f,i) => s + f*avail[i][p]/100, 0)*100);
+}
+
+function showResult(r) {
+  document.getElementById('no-result').style.display = 'none';
+  document.getElementById('result-content').style.display = 'block';
+
+  // Switch tab
+  document.querySelectorAll('.tab').forEach((b,i) => b.classList.toggle('active', i===2));
+  document.querySelectorAll('.panel').forEach((p,i) => p.classList.toggle('active', i===2));
+
+  // Metrics
+  document.getElementById('metric-row').innerHTML = [
+    ['Costo MP ($/kg)',     '$'+r.mpCost.toFixed(4)],
+    ['Costo total ($/kg)',  '$'+r.costoTotal.toFixed(4)],
+    ['Precio final ($/kg)', '$'+r.precioFinal.toFixed(4)],
+    ['Densidad est. (kg/L)', r.dens.toFixed(3)],
+  ].map(([l,v]) => `<div class="metric-card"><div class="metric-label">${l}</div><div class="metric-value">${v}</div></div>`).join('');
+
+  // MP table
+  let totalKg=0, totalCost=0;
+  document.getElementById('mp-body').innerHTML = r.mps.map((mp,i) => {
+    totalKg += mp.kg; totalCost += mp.costoTot;
+    const pct = (mp.frac*100).toFixed(2);
+    const c = BAR_COLORS[i % BAR_COLORS.length];
+    return `<tr>
+      <td>${mp.n}</td>
+      <td><span class="badge ${mp.c==='liquido'?'b-liq':'b-sol'}">${mp.c==='liquido'?'liq':'sól'}</span></td>
+      <td style="font-family:'DM Mono',monospace;">${mp.kg.toFixed(1)}</td>
+      <td style="font-family:'DM Mono',monospace;">${pct}%</td>
+      <td><div style="font-size:0.68rem;color:var(--text-3);margin-bottom:2px;">${pct}%</div><div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:${c};"></div></div></td>
+      <td style="font-family:'DM Mono',monospace;">$${(mp.costo/(mp.d||1)).toFixed(4)}</td>
+      <td style="font-family:'DM Mono',monospace;">$${mp.costoTot.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('mp-total').innerHTML = `<td colspan="2" style="font-weight:600;">TOTAL</td><td style="font-family:'DM Mono',monospace;">${totalKg.toFixed(1)}</td><td style="font-family:'DM Mono',monospace;">100%</td><td></td><td></td><td style="font-family:'DM Mono',monospace;">$${totalCost.toFixed(2)}</td>`;
+
+  // Nutrients
+  const NUT_NAMES  = ['N total','P₂O₅','K₂O','Ca','Mg','S','Cl'];
+  const NUT_KEYS   = ['n','p','k','ca','mg','s',null];
+  const NUT_COLORS = ['#1A7FAF','#1A8C6E','#8B5CF6','#D85A30','#BA7517','#D4537E','#639922'];
+  document.getElementById('nut-result').innerHTML = r.nut.map((val,i) => {
+    const t = i<6 ? r.targets[NUT_KEYS[i]] : null;
+    let tStr='libre', ok=true;
+    if (t) {
+      if (t.exact!==null) { tStr=`= ${t.exact}%`; ok=Math.abs(val-t.exact)<0.5; }
+      else {
+        const pts=[];
+        if (t.min!==null){ pts.push(`≥ ${t.min}%`); if(val<t.min-0.1) ok=false; }
+        if (t.max!==null){ pts.push(`≤ ${t.max}%`); if(val>t.max+0.1) ok=false; }
+        if(pts.length) tStr=pts.join(', ');
+      }
+    }
+    if (i===6 && r.cloro_modo==='cloro_maximo'){ tStr=`≤ ${r.cl_lim}%`; ok=val<=r.cl_lim+0.05; }
+    return `<div class="nut-card">
+      <div class="nut-name">${NUT_NAMES[i]}</div>
+      <div class="nut-val" style="color:${NUT_COLORS[i]};">${val.toFixed(3)}%</div>
+      <div class="nut-target">${tStr} <span class="${ok?'ok':'nok'}">${ok?'✓':'✕'}</span></div>
+    </div>`;
+  }).join('');
+
+  // Cotizacion
+  const cotL = [
+    ['Costo MP ($/kg)', '$'+r.mpCost.toFixed(4)],
+    ['Maquila ($/kg)',  '$'+r.maquila.toFixed(4)],
+    ['Envase ($/kg)',   '$'+r.envase.toFixed(4)],
+    ['Logística ($/kg)','$'+r.logistica.toFixed(4)],
+    ['Costo total ($/kg)','$'+r.costoTotal.toFixed(4)],
+  ];
+  const cotR = [
+    ['Costo total ($/ton)', '$'+(r.costoTotal*1000).toFixed(2)],
+    ['Costo total ($/L)',   '$'+(r.costoTotal*r.dens).toFixed(4)],
+    ['Margen aplicado (%)', (r.margen*100).toFixed(1)+'%'],
+    ['Precio final ($/kg)', '$'+r.precioFinal.toFixed(4)],
+    ['Precio final ($/L)',  '$'+(r.precioFinal*r.dens).toFixed(4)],
+  ];
+  const toRows = rows => rows.map(([l,v]) => `<div class="cotiz-row"><span>${l}</span><span class="cotiz-val">${v}</span></div>`).join('');
+  document.getElementById('cotiz-left').innerHTML  = toRows(cotL);
+  document.getElementById('cotiz-right').innerHTML = toRows(cotR);
+
+  // Alertas
+  let al = '';
+  if (r.cloro_modo==='cloro_maximo' && r.nut[6] >= r.cl_lim * 0.95) {
+    al += `<div class="alert alert-warn">⚠ Cl total (${r.nut[6].toFixed(2)}%) está cerca del límite (${r.cl_lim}%). Margen disponible: ${Math.max(0,r.cl_lim-r.nut[6]).toFixed(3)}%.</div>`;
+  }
+  al += `<div class="alert alert-ok">✓ Densidad estimada por promedio ponderado: ${r.dens.toFixed(3)} kg/L.</div>`;
+  document.getElementById('alertas-box').innerHTML = al;
+}
+
+buildDB();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'imc-aqua-v1';
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(['.'])));
+      self.skipWaiting();
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+    });
+  `;
+  const blob = new Blob([swCode], {type: 'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob));
+}
+</script>
+</body>
+</html>
